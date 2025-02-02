@@ -2,6 +2,12 @@ import requests, datetime, json, logging, os, csv, re, collections
 import pandas as pd
 from pathlib import Path
 from typing import Any
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+
+CURRENCY_RATE_API_KEY = os.getenv("CURRENCY_RATE_API_KEY")
+STOCK_PRICES_API_KEY = os.getenv("STOCK_PRICES_API_KEY")
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
@@ -27,37 +33,93 @@ def excel_reader(filepath: str = "") -> Any:
     return data
 
 
-def cards_collector(data: dict) -> dict:
-    cards_data = {}
-    result = []
-    # card_number = ""
-    # total_spent = 0.0
-    # cashback = 0
+def get_currency_rates(currency_list: list) -> list:
+    currency = ",".join(currency_list)
 
-    for string in data:
-        card_number = ""
-        total_spent = 0.0
-        cashback = 0
-        if string.get('Номер карты') is not None:
-            card_number = string.get('Номер карты')[2:]
-            utils_logger.debug(f"card_number: {card_number} ")
-            if int(string.get('Сумма операции')) < 0:
-                total_spent = float(string.get('Сумма операции'))
-                utils_logger.debug(f"card_number: {total_spent} ")
-            if string.get('Кэшбэк') is not None:
-                cashback = float(string.get('Кэшбэк'))
-                utils_logger.debug(f"card_number: {cashback} ")
+    url = f"https://api.apilayer.com/exchangerates_data/latest?symbols={currency}&base=RUB"
 
-        if cards_data.get(card_number) is None:
-            cards_data[card_number] = {"last_digits": card_number, "total_spent": total_spent, "cashback": cashback}
-        else:
-            cards_data[card_number]["total_spent"] += total_spent
-            cards_data[card_number]["cashback"] += cashback
+    payload = {}
+    headers = {
+        "apikey": CURRENCY_RATE_API_KEY
+    }
 
-        utils_logger.debug(f"at dict: card_number: {cards_data[card_number]["last_digits"]}, total_spent: {cards_data[card_number]["total_spent"]}, cashback: {cards_data[card_number]["cashback"]} ")
+    try:
+        response = requests.request("GET", url, headers=headers, data=payload)
+    except requests.exceptions.ConnectionError:
+        print("Connection Error. Please check your internet connection.")
+    except requests.exceptions.Timeout:
+        print("Timeout Error. Please check your internet connection.")
+    except requests.exceptions.TooManyRedirects:
+        print("Too many redirects. Please check your internet connection.")
+    except requests.exceptions.HTTPError:
+        print("HTTP Error. Please check your internet connection.")
+    except requests.exceptions.RequestException:
+        print("Something went wrong. Please check your internet connection or try again later.")
+    else:
 
-    for card in cards_data:
-        cards_data[card]["total_spent"] = abs(cards_data[card]["total_spent"])
-        cards_data[card]["cashback"] = int(cards_data[card]["cashback"] // 100)
+        status_code = response.status_code
+        if status_code == 400:
+            print('Bad Request')
+        if status_code == 401:
+            print('Unauthorized')
+        if status_code == 404:
+            print('Not Found')
+        if status_code == 429:
+            print('Too many requests')
+        if status_code == 500:
+            print('Server Error')
 
-    return {"cards": cards_data}
+        result = response.json()
+
+        currency_rates = result.get("rates")
+        return currency_rates
+
+
+def get_stock_prices(stock_list: list) -> list:
+    stocks = ",".join(stock_list)
+
+    url = f"http://api.marketstack.com/v1/intraday/latest?access_key={STOCK_PRICES_API_KEY}"
+
+    querystring = {"symbols":stocks}
+
+    try:
+        response = requests.get(url, params=querystring)
+    except requests.exceptions.ConnectionError:
+        print("Connection Error. Please check your internet connection.")
+    except requests.exceptions.Timeout:
+        print("Timeout Error. Please check your internet connection.")
+    except requests.exceptions.TooManyRedirects:
+        print("Too many redirects. Please check your internet connection.")
+    except requests.exceptions.HTTPError:
+        print("HTTP Error. Please check your internet connection.")
+    except requests.exceptions.RequestException:
+        print("Something went wrong. Please check your internet connection or try again later.")
+    else:
+
+        status_code = response.status_code
+        if status_code == 400:
+            print('Bad Request')
+        if status_code == 401:
+            print('Unauthorized')
+        if status_code == 403:
+            print('Forbidden')
+        if status_code == 404:
+            print('Not Found')
+        if status_code == 429:
+            print('Too many requests')
+        if status_code == 500:
+            print('Server Error')
+
+        result = response.json()
+
+        stock_prices = []
+        for stock in result.get('data'):
+            stock_prices.append({stock.get('symbol') : stock.get('last')})
+
+        usd_rate = get_currency_rates(["USD"]).get("USD")
+        for stock in stock_prices:
+            for price in stock.keys():
+                stock[price] *= usd_rate
+                stock[price] = round(stock[price], 2)
+
+        return stock_prices

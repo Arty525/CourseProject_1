@@ -1,32 +1,50 @@
-import pytest
+from unittest.mock import patch, Mock
 import src.utils as utils
+import requests
 
 
-@pytest.mark.parametrize(
-    "value, expected",
-    [
-        (
+@patch("requests.request")
+def test_get_currency_rates(mock_get):
+    mock_get.return_value.json.return_value = {
+        "base": "RUB",
+        "date": "2025-02-02",
+        "rates": {
+        "EUR": 0.009785,
+        "USD": 0.010139
+        },
+        "success": True,
+        "timestamp": 1738482316
+    }
+
+    requests.request = mock_get
+    assert utils.get_currency_rates(["EUR", "USD"]) == {"EUR": 0.009785, "USD": 0.010139}
+
+
+@patch("requests.get")
+def test_get_stock_prices(mock_get):
+    utils.get_currency_rates = Mock(return_value={"USD":100.0})
+    mock_get.return_value.json.return_value = {
+        'pagination':
+            {'limit': 100, 'offset': 0, 'count': 5, 'total': 5},
+        'data':
             [
-                {"Номер карты": "**1234", "Сумма операции": "-500", "Кэшбэк": 70},
-                {"Номер карты": "**5533", "Сумма операции": "500"},
-                {"Номер карты": "**1234", "Сумма операции": "-100", "Кэшбэк": 20},
-                {"Номер карты": "**5533", "Сумма операции": "720", "Кэшбэк": 10},
-                {"Номер карты": "**6251", "Сумма операции": "-700", "Кэшбэк": 150},
-                {"Номер карты": "**1234", "Сумма операции": " 200", "Кэшбэк": 70},
-                {"Номер карты": "**6251", "Сумма операции": "-1000"},
-                {"Номер карты": "**1234", "Сумма операции": "-30", "Кэшбэк": 70},
-            ],
-            {
-                "cards": {
-                    '1234': {"last_digits": "1234", "total_spent": 630.0, "cashback": 2},
-                    '5533': {"last_digits": "5533", "total_spent": 0.0, "cashback": 0},
-                    '6251': {"last_digits": "6251", "total_spent": 1700.0, "cashback": 1},
-                }
-            },
-        )
-    ],
-)
-
-
-def test_cards_collector(value: list, expected: list) -> None:
-    assert utils.cards_collector(value) == expected
+                {'open': 247.97, 'high': 247.97, 'low': 233.45, 'last': 233.88, 'close': 237.59, 'volume': 1516752.0,
+                 'date': '2025-01-31T20:00:00+0000', 'symbol': 'AAPL', 'exchange': 'IEXG'},
+                {'open': 236.89, 'high': 240.285, 'low': 236.31, 'last': 237.82, 'close': 234.64, 'volume': 817875.0,
+                 'date': '2025-01-31T20:00:00+0000', 'symbol': 'AMZN', 'exchange': 'IEXG'},
+                {'open': 201.69, 'high': 205.475, 'low': 201.61, 'last': 204.0, 'close': 200.87, 'volume': 924014.0,
+                 'date': '2025-01-31T20:00:00+0000', 'symbol': 'GOOGL', 'exchange': 'IEXG'},
+                {'open': 419.29, 'high': 420.65, 'low': 415.06, 'last': 416.25, 'close': 414.99, 'volume': 693167.0,
+                 'date': '2025-01-31T20:00:00+0000', 'symbol': 'MSFT', 'exchange': 'IEXG'},
+                {'open': 399.99, 'high': 419.98, 'low': 397.74, 'last': 404.83, 'close': 400.28, 'volume': 726160.0,
+                 'date': '2025-01-31T20:00:00+0000', 'symbol': 'TSLA', 'exchange': 'IEXG'}
+            ]
+    }
+    requests.get = mock_get
+    assert utils.get_stock_prices(["AAPL", "AMZN", "GOOGL", "MSFT", "TSLA"]) == [
+        {'AAPL': 23388.0},
+        {'AMZN': 23782.0},
+        {'GOOGL': 20400.0},
+        {'MSFT': 41625.0},
+        {'TSLA': 40483.0}
+    ]
