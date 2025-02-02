@@ -111,6 +111,7 @@ def get_stock_prices(stock_list: list) -> list:
             print('Server Error')
 
         result = response.json()
+        utils_logger.info(f"result: {result}")
 
         stock_prices = []
         for stock in result.get('data'):
