@@ -76,7 +76,7 @@ def test_main_page():
         {"price" : 41625.0, "stock" : "MSFT"},
         {"price" : 40483.0, "stock" : "TSLA"}
     ])
-    assert views.main_page(date) == {'cards': [{'cashback': 0, 'last_digits': '5091', 'total_spent': 14034.37},
+    assert json.loads(views.main_page(date)) == {'cards': [{'cashback': 0, 'last_digits': '5091', 'total_spent': 14034.37},
            {'cashback': 0, 'last_digits': '7197', 'total_spent': 20427.45},
            {'cashback': 0, 'last_digits': '4556', 'total_spent': 952.9}],
  'currency_rates': [{'currency': 'EUR', 'rate': 102.55},

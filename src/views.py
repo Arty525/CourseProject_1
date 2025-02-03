@@ -91,9 +91,7 @@ def main_page(date: datetime) -> json:
         "stock_prices": utils.get_stock_prices(user_settings.get('user_stocks'))
     }
 
-    print(json.dumps(result))
-
-    return result
+    return json.dumps(result)
 
 if __name__ == "__main__":
     date = datetime.datetime.strptime("28.12.2021 00:00:00", "%d.%m.%Y %H:%M:%S")
