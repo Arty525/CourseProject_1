@@ -30,7 +30,7 @@ def cards_collector(data: dict) -> dict:
             cards_data[line.get('Номер карты')] = {'last_digits':line.get('Номер карты')[1:], 'total_spent': 0.0 , 'cashback': 0}
         if float(line.get('Сумма операции')) < 0:
             cards_data[line.get('Номер карты')]['total_spent'] += abs(float(line.get('Сумма операции')))
-        if line.get('Кэшбэк') > 0:
+        if line.get('Кэшбэк') is not None and line.get('Кэшбэк') > 0:
             views_logger.debug(f"cashback: {line.get('Кэшбэк')}")
             cards_data[line.get('Номер карты')]['cashback'] += abs(int(line.get('Кэшбэк')))
 
@@ -43,9 +43,12 @@ def cards_collector(data: dict) -> dict:
 
 
 def top_transactions(data: dict) -> list:
-    sorted_transactions = sorted(data, key=lambda operation: (operation.get('Сумма платежа'), datetime.datetime.strptime(operation.get('Дата операции'), '%d.%m.%Y %H:%M:%S')), reverse=True)
-    top_transactions = sorted_transactions[:5]
-    return top_transactions
+    sorted_transactions = sorted(data, key=lambda operation: (operation.get('Сумма операции'), datetime.datetime.strptime(operation.get('Дата операции'), '%d.%m.%Y %H:%M:%S')), reverse=True)
+    top = []
+    for transaction in sorted_transactions[:5]:
+        top.append(({"amount" : transaction.get("Сумма операции"), "category" : transaction.get("Категория"),
+                                  "date" : transaction.get("Дата операции")[:10], "description" : transaction.get("Описание")}))
+    return top
 
 
 def currency_rates(currency_list) -> dict:

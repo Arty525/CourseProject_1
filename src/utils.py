@@ -3,6 +3,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Any
 from dotenv import load_dotenv
+from urllib3 import request
 
 load_dotenv(".env")
 
@@ -34,9 +35,14 @@ def excel_reader(filepath: str = "") -> Any:
 
 
 def get_currency_rates(currency_list: list) -> list:
-    currency = ",".join(currency_list)
+    currencies = ""
 
-    url = f"https://api.apilayer.com/exchangerates_data/latest?symbols={currency}&base=RUB"
+    for currency in currency_list:
+        currencies += currency + "RUB" + ","
+
+    currencies = currencies[:-1]
+
+    url = f"https://currate.ru/api/?get=rates&pairs={currencies}&key={CURRENCY_RATE_API_KEY}"
 
     payload = {}
     headers = {
@@ -69,9 +75,13 @@ def get_currency_rates(currency_list: list) -> list:
         if status_code == 500:
             print('Server Error')
 
-        result = response.json()
+        #result = response.json()
+        result = response.json().get("data")
 
-        currency_rates = result.get("rates")
+        currency_rates = []
+        for currency, rate in result.items():
+            currency_rates.append({"currency": currency[:-3], "rate": float(rate)})
+
         return currency_rates
 
 
@@ -115,12 +125,12 @@ def get_stock_prices(stock_list: list) -> list:
 
         stock_prices = []
         for stock in result.get('data'):
-            stock_prices.append({stock.get('symbol') : stock.get('last')})
+            stock_prices.append({"price" : stock.get('last'), "stock" : stock.get('symbol')})
 
         usd_rate = get_currency_rates(["USD"]).get("USD")
+
         for stock in stock_prices:
-            for price in stock.keys():
-                stock[price] *= usd_rate
-                stock[price] = round(stock[price], 2)
+            stock["price"] *= usd_rate
+            stock["price"] = round(stock["price"], 2)
 
         return stock_prices

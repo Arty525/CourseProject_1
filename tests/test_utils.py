@@ -5,19 +5,12 @@ import requests
 
 @patch("requests.request")
 def test_get_currency_rates(mock_get):
-    mock_get.return_value.json.return_value = {
-        "base": "RUB",
-        "date": "2025-02-02",
-        "rates": {
-        "EUR": 0.009785,
-        "USD": 0.010139
-        },
-        "success": True,
-        "timestamp": 1738482316
-    }
+    mock_get.return_value.json.return_value = {"status": "200", "message": "rates", "data":
+        {"EURRUB": "102.55", "USDRUB": "97.31"}}
 
     requests.request = mock_get
-    assert utils.get_currency_rates(["EUR", "USD"]) == {"EUR": 0.009785, "USD": 0.010139}
+    assert utils.get_currency_rates(["EUR", "USD"]) == [{"currency" : "EUR", "rate" : 102.55},
+        {"currency" : "USD", "rate" : 97.31}]
 
 
 @patch("requests.get")
@@ -42,9 +35,9 @@ def test_get_stock_prices(mock_get):
     }
     requests.get = mock_get
     assert utils.get_stock_prices(["AAPL", "AMZN", "GOOGL", "MSFT", "TSLA"]) == [
-        {'AAPL': 23388.0},
-        {'AMZN': 23782.0},
-        {'GOOGL': 20400.0},
-        {'MSFT': 41625.0},
-        {'TSLA': 40483.0}
+        {"price" : 23388.0, "stock" : "AAPL"},
+        {"price" : 23782.0, "stock" : "AMZN"},
+        {"price" : 20400.0, "stock" : "GOOGL"},
+        {"price" : 41625.0, "stock" : "MSFT"},
+        {"price" : 40483.0, "stock" : "TSLA"}
     ]
