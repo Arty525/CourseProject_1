@@ -1,4 +1,8 @@
-import datetime, pytest, json
+import json
+
+import pandas as pd
+import pytest
+
 import src.services as services
 
 
@@ -19,11 +23,9 @@ import src.services as services
                 {"Дата операции": "07.11.2021 18:50:25", "Категория": "Транспорт"},
                 {"Дата операции": "28.10.2021 15:51:42", "Категория": "Транспорт"},
             ],
-                {"Топливо" : 100, "Продукты" : 15, "Развлечения" : 15}
+            {"Топливо": 100, "Продукты": 15, "Развлечения": 15},
         )
     ],
 )
-
-
 def test_cashback_category(value, expected):
-    assert json.loads(services.cashback_category(value, 2021, 11)) == expected
+    assert json.loads(services.cashback_category(pd.DataFrame(value), 2021, 11)) == expected

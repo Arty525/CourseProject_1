@@ -1,6 +1,10 @@
-import json, datetime, os, logging
+import datetime
+import json
+import logging
+import os
 from pathlib import Path
-import src.utils as utils
+
+import pandas as pd
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 
@@ -15,9 +19,16 @@ services_logger.addHandler(file_handler)
 services_logger.addHandler(console_handler)
 services_logger.setLevel(logging.DEBUG)
 
-def cashback_category(data: list, year: datetime.datetime, month: datetime.datetime) -> json:
-    categories = {}
 
+def cashback_category(data: pd.DataFrame, year: datetime.datetime, month: datetime.datetime) -> json:
+    """
+    :param data: DataFrame с банковскими операциями
+    :param year: Год за который выводятся категории кэшбэка
+    :param month: Месяц за который выводятся категории кэшбэка
+    Функция возвращает JSON с анализом, сколько на каждой категории можно заработать кешбэка в указанном месяце года.
+    """
+    categories = {}
+    data = data.to_dict("records")
     for operation in data:
         date = datetime.datetime.strptime(operation.get("Дата операции"), "%d.%m.%Y %H:%M:%S")
         if date.month == month and date.year == year:
@@ -29,9 +40,10 @@ def cashback_category(data: list, year: datetime.datetime, month: datetime.datet
                     categories[operation.get("Категория")] += int(operation.get("Кэшбэк"))
 
     categories = sorted(categories.items(), key=lambda item: item[1], reverse=True)
+    services_logger.debug("Список отсортирован по убыванию кэшбэка")
     result = {}
     for category in categories:
         result[category[0]] = category[1]
 
-    print(result)
+    services_logger.info("Функция выполнена успешно")
     return json.dumps(result)

@@ -1,11 +1,13 @@
-import requests, datetime, json, logging, os, csv, re, collections
-import pandas as pd
+import logging
+import os
 from pathlib import Path
 from typing import Any
-from dotenv import load_dotenv
-from urllib3 import request
 
-load_dotenv(".env")
+import pandas as pd
+import requests
+from dotenv import load_dotenv
+
+load_dotenv("../.env")
 
 CURRENCY_RATE_API_KEY = os.getenv("CURRENCY_RATE_API_KEY")
 STOCK_PRICES_API_KEY = os.getenv("STOCK_PRICES_API_KEY")
@@ -30,11 +32,21 @@ def excel_reader(filepath: str = "") -> Any:
     Функция принимает на вход путь к файлу формата .xlsx и возвращает список словарей
     с данными из файла.
     """
-    data = pd.read_excel(filepath).to_dict("records")
+    try:
+        data = pd.read_excel(filepath)
+    except Exception:
+        utils_logger.warning(Exception)
+        raise Exception
+    utils_logger.info("Функция выполнена успешно")
     return data
 
 
 def get_currency_rates(currency_list: list) -> list:
+    """
+    :param currency_list: список валют
+    Функция обращается к внешнему API и возвращает курсы валют из списка
+    """
+
     currencies = ""
 
     for currency in currency_list:
@@ -45,92 +57,80 @@ def get_currency_rates(currency_list: list) -> list:
     url = f"https://currate.ru/api/?get=rates&pairs={currencies}&key={CURRENCY_RATE_API_KEY}"
 
     payload = {}
-    headers = {
-        "apikey": CURRENCY_RATE_API_KEY
-    }
+    headers = {"apikey": CURRENCY_RATE_API_KEY}
 
-    try:
-        response = requests.request("GET", url, headers=headers, data=payload)
-    except requests.exceptions.ConnectionError:
-        print("Connection Error. Please check your internet connection.")
-    except requests.exceptions.Timeout:
-        print("Timeout Error. Please check your internet connection.")
-    except requests.exceptions.TooManyRedirects:
-        print("Too many redirects. Please check your internet connection.")
-    except requests.exceptions.HTTPError:
-        print("HTTP Error. Please check your internet connection.")
-    except requests.exceptions.RequestException:
-        print("Something went wrong. Please check your internet connection or try again later.")
-    else:
+    response = requests.request("GET", url, headers=headers, data=payload)
+    status_code = response.status_code
+    if status_code == 400:
+        utils_logger.warning("Bad Request")
+        print("Bad Request")
+    if status_code == 401:
+        utils_logger.warning("Unauthorized")
+        print("Unauthorized")
+    if status_code == 404:
+        utils_logger.warning("Not Found")
+        print("Not Found")
+    if status_code == 429:
+        utils_logger.warning("Too many requests")
+        print("Too many requests")
+    if status_code == 500:
+        utils_logger.warning("Server Error")
+        print("Server Error")
 
-        status_code = response.status_code
-        if status_code == 400:
-            print('Bad Request')
-        if status_code == 401:
-            print('Unauthorized')
-        if status_code == 404:
-            print('Not Found')
-        if status_code == 429:
-            print('Too many requests')
-        if status_code == 500:
-            print('Server Error')
+    result = response.json().get("data")
 
-        #result = response.json()
-        result = response.json().get("data")
+    currency_rates = []
+    for currency, rate in result.items():
+        currency_rates.append({"currency": currency[:-3], "rate": float(rate)})
 
-        currency_rates = []
-        for currency, rate in result.items():
-            currency_rates.append({"currency": currency[:-3], "rate": float(rate)})
-
-        return currency_rates
+    utils_logger.info("Функция выполнена успешно")
+    return currency_rates
 
 
 def get_stock_prices(stock_list: list) -> list:
+    """
+    :param stock_list: Список акций
+    Функция обращается к внешнему API и возвращает курсы акций из списка
+    """
     stocks = ",".join(stock_list)
 
     url = f"http://api.marketstack.com/v1/intraday/latest?access_key={STOCK_PRICES_API_KEY}"
 
-    querystring = {"symbols":stocks}
+    querystring = {"symbols": stocks}
 
-    try:
-        response = requests.get(url, params=querystring)
-    except requests.exceptions.ConnectionError:
-        print("Connection Error. Please check your internet connection.")
-    except requests.exceptions.Timeout:
-        print("Timeout Error. Please check your internet connection.")
-    except requests.exceptions.TooManyRedirects:
-        print("Too many redirects. Please check your internet connection.")
-    except requests.exceptions.HTTPError:
-        print("HTTP Error. Please check your internet connection.")
-    except requests.exceptions.RequestException:
-        print("Something went wrong. Please check your internet connection or try again later.")
-    else:
+    response = requests.get(url, params=querystring)
 
-        status_code = response.status_code
-        if status_code == 400:
-            print('Bad Request')
-        if status_code == 401:
-            print('Unauthorized')
-        if status_code == 403:
-            print('Forbidden')
-        if status_code == 404:
-            print('Not Found')
-        if status_code == 429:
-            print('Too many requests')
-        if status_code == 500:
-            print('Server Error')
+    status_code = response.status_code
+    if status_code == 400:
+        utils_logger.warning("Bad Request")
+        print("Bad Request")
+    if status_code == 401:
+        utils_logger.warning("Unauthorized")
+        print("Unauthorized")
+    if status_code == 403:
+        utils_logger.warning("Forbidden")
+        print("Forbidden")
+    if status_code == 404:
+        utils_logger.warning("Not Found")
+        print("Not Found")
+    if status_code == 429:
+        utils_logger.warning("Too many requests")
+        print("Too many requests")
+    if status_code == 500:
+        utils_logger.warning("Server Error")
+        print("Server Error")
 
-        result = response.json()
-        utils_logger.info(f"result: {result}")
+    result = response.json()
 
-        stock_prices = []
-        for stock in result.get('data'):
-            stock_prices.append({"price" : stock.get('last'), "stock" : stock.get('symbol')})
+    stock_prices = []
+    for stock in result.get("data"):
+        stock_prices.append({"price": stock.get("last"), "stock": stock.get("symbol")})
 
-        usd_rate = get_currency_rates(["USD"]).get("USD")
+    usd_rate = get_currency_rates(["USD"]).get("USD")
 
-        for stock in stock_prices:
-            stock["price"] *= usd_rate
-            stock["price"] = round(stock["price"], 2)
+    for stock in stock_prices:
+        stock["price"] *= usd_rate
+        stock["price"] = round(stock["price"], 2)
 
-        return stock_prices
+    utils_logger.info("Функция выполнена успешно")
+    return stock_prices
